@@ -200,25 +200,23 @@ def main():
     # Cargar credenciales
     creds = load_credentials()
     
-    # Calcular rango de fechas (semana actual: lunes a domingo)
+    # Calcular rango de fechas (mes actual: desde el 1 hasta hoy)
     today = datetime.now()
-    # 0 = lunes, 6 = domingo
-    start_of_week = today - timedelta(days=today.weekday())
-    end_of_week = start_of_week + timedelta(days=6)
-    days_elapsed = (today - start_of_week).days + 1
+    start_of_month = today.replace(day=1)
+    days_elapsed = today.day
     
     # Obtener datos
-    stats = get_fitness_data(creds, start_of_week, today)
+    stats = get_fitness_data(creds, start_of_month, today)
     
     # Mostrar resultados
-    print("\n📈 Estadísticas obtenidas (totales de la semana):")
+    print("\n📈 Estadísticas obtenidas (totales del mes):")
     print(f"  👟 Pasos: {stats['steps']:,}")
     print(f"  🔥 Calorías: {stats['calories']:,}")
     print(f"  ⏱️  Minutos activos: {stats['active_minutes']:,}")
     
     # Generar SVG widget
-    week_range = f"{start_of_week.strftime('%b %d')} - {end_of_week.strftime('%b %d, %Y')}"
-    generate_svg_widget(stats, week_range, days_elapsed)
+    month_range = f"{start_of_month.strftime('%B %Y')}"
+    generate_svg_widget(stats, month_range, days_elapsed)
     
     # Actualizar README
     update_readme()
