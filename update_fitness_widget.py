@@ -94,7 +94,7 @@ def get_fitness_data(creds, start_date, end_date):
         print(f"❌ Error: {e}")
         raise
 
-def update_readme(stats, month_name):
+def update_readme(stats, week_range):
     """Actualiza el README con las estadísticas de fitness"""
     readme_path = '../profile-repo/README.md'
     
@@ -105,8 +105,8 @@ def update_readme(stats, month_name):
     with open(readme_path, 'r', encoding='utf-8') as f:
         content = f.read()
     
-    # Crear widget actualizado (totales del mes)
-    widget = f"""## 🏃 Fitness Stats - {month_name} (Totales)
+    # Crear widget actualizado (totales de la semana)
+    widget = f"""## 🏃 Fitness Stats - {week_range} (Totales)
 
 | Metric | Value |
 |--------|-------|
@@ -139,22 +139,24 @@ def main():
     # Cargar credenciales
     creds = load_credentials()
     
-    # Calcular rango de fechas (mes actual)
+    # Calcular rango de fechas (semana actual: lunes a domingo)
     today = datetime.now()
-    start_of_month = today.replace(day=1)
+    # 0 = lunes, 6 = domingo
+    start_of_week = today - timedelta(days=today.weekday())
+    end_of_week = start_of_week + timedelta(days=6)
     
     # Obtener datos
-    stats = get_fitness_data(creds, start_of_month, today)
+    stats = get_fitness_data(creds, start_of_week, today)
     
     # Mostrar resultados
-    print("\n📈 Estadísticas obtenidas (totales del mes):")
+    print("\n📈 Estadísticas obtenidas (totales de la semana):")
     print(f"  👟 Pasos: {stats['steps']:,}")
     print(f"  🔥 Calorías: {stats['calories']:,}")
     print(f"  ⏱️  Minutos activos: {stats['active_minutes']:,}")
     
     # Actualizar README
-    month_name = today.strftime('%B %Y')
-    update_readme(stats, month_name)
+    week_range = f"{start_of_week.strftime('%b %d')} - {end_of_week.strftime('%b %d, %Y')}"
+    update_readme(stats, week_range)
     
     print("\n✅ Proceso completado exitosamente!")
 
