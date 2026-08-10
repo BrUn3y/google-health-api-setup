@@ -38,14 +38,16 @@ def get_fitness_data(creds, start_date, end_date):
         'Content-Type': 'application/json'
     }
     
-    # Formato de fecha para el filtro
+    # Formato de fecha para el filtro (Google Health API solo soporta >= y <, no <=)
     start_str = start_date.strftime('%Y-%m-%dT00:00:00')
-    end_str = end_date.strftime('%Y-%m-%dT23:59:59')
+    # Agregar 1 día para usar < en lugar de <=
+    end_date_plus_one = end_date + timedelta(days=1)
+    end_str = end_date_plus_one.strftime('%Y-%m-%dT00:00:00')
     
     # Endpoint para datos de ejercicio
     url = f'{API_BASE}/users/me/dataTypes/exercise/dataPoints'
     params = {
-        'filter': f'exercise.interval.civil_start_time >= "{start_str}" AND exercise.interval.civil_start_time <= "{end_str}"'
+        'filter': f'exercise.interval.civil_start_time >= "{start_str}" AND exercise.interval.civil_start_time < "{end_str}"'
     }
     
     print(f"📊 Consultando datos del {start_date.date()} al {end_date.date()}...")
