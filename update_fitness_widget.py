@@ -80,42 +80,10 @@ def get_fitness_data(creds, start_date, end_date):
                 seconds = float(duration[:-1])
                 total_active_minutes += int(seconds) // 60
         
-        # 2. Obtener datos de frecuencia cardíaca
-        hr_url = f'{API_BASE}/users/me/dataTypes/heart_rate/dataPoints'
-        hr_params = {
-            'filter': f'heart_rate.interval.civil_start_time >= "{start_str}" AND heart_rate.interval.civil_start_time < "{end_str}"'
-        }
-        
-        min_hr = None
-        max_hr = None
-        
-        try:
-            hr_response = requests.get(hr_url, headers=headers, params=hr_params)
-            hr_response.raise_for_status()
-            hr_data = hr_response.json()
-            
-            hr_points = hr_data.get('dataPoints', [])
-            print(f"  • Puntos de datos de frecuencia cardíaca: {len(hr_points)}")
-            
-            for point in hr_points:
-                hr = point.get('heart_rate', {})
-                bpm = hr.get('beatsPerMinute')
-                
-                if bpm:
-                    if min_hr is None or bpm < min_hr:
-                        min_hr = bpm
-                    if max_hr is None or bpm > max_hr:
-                        max_hr = bpm
-        
-        except requests.exceptions.HTTPError as e:
-            print(f"  ⚠️  No se pudieron obtener datos de frecuencia cardíaca: {e}")
-        
         return {
             'steps': total_steps,
             'calories': int(total_calories),
-            'active_minutes': total_active_minutes,
-            'min_heart_rate': min_hr,
-            'max_heart_rate': max_hr
+            'active_minutes': total_active_minutes
         }
     
     except requests.exceptions.HTTPError as e:
@@ -137,11 +105,6 @@ def update_readme(stats, month_name):
     with open(readme_path, 'r', encoding='utf-8') as f:
         content = f.read()
     
-    # Formatear frecuencia cardíaca
-    hr_text = "N/A"
-    if stats['min_heart_rate'] and stats['max_heart_rate']:
-        hr_text = f"{stats['min_heart_rate']} - {stats['max_heart_rate']} bpm"
-    
     # Crear widget actualizado (totales del mes)
     widget = f"""## 🏃 Fitness Stats - {month_name} (Totales)
 
@@ -150,7 +113,6 @@ def update_readme(stats, month_name):
 | 👟 Steps | {stats['steps']:,} |
 | 🔥 Calories | {stats['calories']:,} |
 | ⏱️ Active Minutes | {stats['active_minutes']:,} |
-| ❤️ Heart Rate | {hr_text} |
 
 *Last updated: {datetime.now().strftime('%Y-%m-%d %H:%M UTC')}*  
 *Data source: Google Health API (Fitbit)*"""
@@ -189,10 +151,6 @@ def main():
     print(f"  👟 Pasos: {stats['steps']:,}")
     print(f"  🔥 Calorías: {stats['calories']:,}")
     print(f"  ⏱️  Minutos activos: {stats['active_minutes']:,}")
-    if stats['min_heart_rate'] and stats['max_heart_rate']:
-        print(f"  ❤️  Frecuencia cardíaca: {stats['min_heart_rate']}-{stats['max_heart_rate']} bpm")
-    else:
-        print(f"  ❤️  Frecuencia cardíaca: N/A")
     
     # Actualizar README
     month_name = today.strftime('%B %Y')
