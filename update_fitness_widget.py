@@ -102,7 +102,7 @@ def get_fitness_data(creds, start_date, end_date):
 
 def update_readme(stats, month_name):
     """Actualiza el README con las estadísticas de fitness"""
-    readme_path = '../Brun3y/README.md'
+    readme_path = '../profile-repo/README.md'
     
     if not os.path.exists(readme_path):
         print(f"⚠️  No se encontró {readme_path}")
