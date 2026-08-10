@@ -76,11 +76,11 @@ def get_fitness_data(creds, start_date, end_date):
             total_calories += metrics.get('caloriesKcal', 0)
             total_distance_mm += metrics.get('distanceMillimiters', 0)
             
-            # Calcular minutos activos desde activeDuration (formato: "900s")
+            # Calcular minutos activos desde activeDuration (formato: "900s" o "3023.500s")
             duration = exercise.get('activeDuration', '0s')
             if duration.endswith('s'):
-                seconds = int(duration[:-1])
-                total_active_minutes += seconds // 60
+                seconds = float(duration[:-1])
+                total_active_minutes += int(seconds) // 60
         
         # Convertir distancia de milímetros a kilómetros
         total_distance_km = total_distance_mm / 1_000_000
