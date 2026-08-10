@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 """
 Google Health API - Fitness Widget Updater
-Obtiene datos de fitness desde Google Health API y actualiza el README
+Obtiene datos de fitness desde Google Health API y genera un SVG widget
 """
 
 import os
@@ -14,6 +14,13 @@ from google.auth.transport.requests import Request
 # Configuración
 SCOPES = ['https://www.googleapis.com/auth/googlehealth.activity_and_fitness.readonly']
 API_BASE = 'https://health.googleapis.com/v4'
+
+# Metas semanales (para calcular progreso)
+WEEKLY_GOALS = {
+    'steps': 70000,      # ~10,000 pasos/día
+    'calories': 14000,   # ~2,000 cal/día
+    'active_minutes': 210  # ~30 min/día
+}
 
 def load_credentials():
     """Carga y valida las credenciales OAuth2"""
@@ -94,8 +101,65 @@ def get_fitness_data(creds, start_date, end_date):
         print(f"❌ Error: {e}")
         raise
 
-def update_readme(stats, week_range):
-    """Actualiza el README con las estadísticas de fitness"""
+def format_number(num):
+    """Formatea números con comas para miles"""
+    return f"{num:,}"
+
+def calculate_progress(value, goal, max_width=200):
+    """Calcula el ancho de la barra de progreso"""
+    if goal == 0:
+        return 0
+    progress = min((value / goal) * 100, 100)
+    return int((progress / 100) * max_width)
+
+def generate_svg_widget(stats, week_range, days_elapsed):
+    """Genera el SVG widget con las estadísticas"""
+    template_path = '../profile-repo/assets/fitness-widget.svg'
+    output_path = '../profile-repo/assets/fitness-widget.svg'
+    
+    if not os.path.exists(template_path):
+        print(f"⚠️  No se encontró template en {template_path}")
+        return
+    
+    with open(template_path, 'r', encoding='utf-8') as f:
+        svg_content = f.read()
+    
+    # Calcular promedios diarios
+    steps_avg = stats['steps'] // days_elapsed if days_elapsed > 0 else 0
+    calories_avg = stats['calories'] // days_elapsed if days_elapsed > 0 else 0
+    active_avg = stats['active_minutes'] // days_elapsed if days_elapsed > 0 else 0
+    
+    # Calcular barras de progreso
+    steps_progress = calculate_progress(stats['steps'], WEEKLY_GOALS['steps'])
+    calories_progress = calculate_progress(stats['calories'], WEEKLY_GOALS['calories'])
+    active_progress = calculate_progress(stats['active_minutes'], WEEKLY_GOALS['active_minutes'])
+    
+    # Reemplazar placeholders
+    replacements = {
+        '{{DATE_RANGE}}': week_range,
+        '{{STEPS}}': format_number(stats['steps']),
+        '{{CALORIES}}': format_number(stats['calories']),
+        '{{ACTIVE_MINUTES}}': format_number(stats['active_minutes']),
+        '{{STEPS_AVG}}': format_number(steps_avg),
+        '{{CALORIES_AVG}}': format_number(calories_avg),
+        '{{ACTIVE_AVG}}': format_number(active_avg),
+        '{{STEPS_PROGRESS}}': str(steps_progress),
+        '{{CALORIES_PROGRESS}}': str(calories_progress),
+        '{{ACTIVE_PROGRESS}}': str(active_progress),
+        '{{LAST_UPDATED}}': datetime.now().strftime('%Y-%m-%d %H:%M UTC')
+    }
+    
+    for placeholder, value in replacements.items():
+        svg_content = svg_content.replace(placeholder, value)
+    
+    # Guardar SVG actualizado
+    with open(output_path, 'w', encoding='utf-8') as f:
+        f.write(svg_content)
+    
+    print(f"✅ SVG widget generado en {output_path}")
+
+def update_readme():
+    """Actualiza el README para usar el SVG widget"""
     readme_path = '../profile-repo/README.md'
     
     if not os.path.exists(readme_path):
@@ -105,32 +169,29 @@ def update_readme(stats, week_range):
     with open(readme_path, 'r', encoding='utf-8') as f:
         content = f.read()
     
-    # Crear widget actualizado (totales de la semana)
-    widget = f"""## 🏃 Fitness Stats - {week_range} (Totales)
+    # Crear referencia al SVG
+    widget_section = """### 🏃 Fitness Stats
 
-| Metric | Value |
-|--------|-------|
-| 👟 Steps | {stats['steps']:,} |
-| 🔥 Calories | {stats['calories']:,} |
-| ⏱️ Active Minutes | {stats['active_minutes']:,} |
-
-*Last updated: {datetime.now().strftime('%Y-%m-%d %H:%M UTC')}*  
-*Data source: Google Health API (Fitbit)*"""
+<img src="./assets/fitness-widget.svg" alt="Fitness Stats" width="100%" />"""
     
     # Buscar y reemplazar sección de fitness
     import re
-    pattern = r'## 🏃 Fitness Stats.*?(?=\n##|\Z)'
+    pattern = r'### 🏃 Fitness Stats.*?(?=\n###|\n---|\Z)'
     
     if re.search(pattern, content, re.DOTALL):
-        new_content = re.sub(pattern, widget, content, flags=re.DOTALL)
+        new_content = re.sub(pattern, widget_section, content, flags=re.DOTALL)
     else:
-        # Si no existe, agregar al final
-        new_content = content + '\n\n' + widget
+        # Si no existe, agregar antes del último ---
+        parts = content.rsplit('\n---\n', 1)
+        if len(parts) == 2:
+            new_content = parts[0] + '\n\n' + widget_section + '\n\n---\n' + parts[1]
+        else:
+            new_content = content + '\n\n' + widget_section
     
     with open(readme_path, 'w', encoding='utf-8') as f:
         f.write(new_content)
     
-    print(f"✅ README actualizado en {readme_path}")
+    print(f"✅ README actualizado para usar SVG widget")
 
 def main():
     """Función principal"""
@@ -144,6 +205,7 @@ def main():
     # 0 = lunes, 6 = domingo
     start_of_week = today - timedelta(days=today.weekday())
     end_of_week = start_of_week + timedelta(days=6)
+    days_elapsed = (today - start_of_week).days + 1
     
     # Obtener datos
     stats = get_fitness_data(creds, start_of_week, today)
@@ -154,9 +216,12 @@ def main():
     print(f"  🔥 Calorías: {stats['calories']:,}")
     print(f"  ⏱️  Minutos activos: {stats['active_minutes']:,}")
     
-    # Actualizar README
+    # Generar SVG widget
     week_range = f"{start_of_week.strftime('%b %d')} - {end_of_week.strftime('%b %d, %Y')}"
-    update_readme(stats, week_range)
+    generate_svg_widget(stats, week_range, days_elapsed)
+    
+    # Actualizar README
+    update_readme()
     
     print("\n✅ Proceso completado exitosamente!")
 
